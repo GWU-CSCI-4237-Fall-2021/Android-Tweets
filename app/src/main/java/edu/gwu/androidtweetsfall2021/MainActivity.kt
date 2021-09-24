@@ -1,6 +1,8 @@
 package edu.gwu.androidtweetsfall2021
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.Editable
@@ -34,6 +36,9 @@ class MainActivity : AppCompatActivity() {
         // Second parameter = the actual thing you want to log
         Log.d("MainActivity", "onCreate called!")
 
+        val preferences: SharedPreferences = getSharedPreferences("android-tweets", Context.MODE_PRIVATE)
+
+
         // The IDs we are using here should match what was set in the "id" field for our views
         // in our XML layout (which was specified by setContentView).
         // Android will "search" the UI for the elements with the matching IDs to bind to our variables.
@@ -46,9 +51,20 @@ class MainActivity : AppCompatActivity() {
         // If the getter / setter is unambiguous, Kotlin lets you use the property-style syntax
         login.isEnabled = false
 
+        // Restore the saved username from SharedPreferences and display it to the user when the screen loads.
+        // Default to the empty string if there is no saved username.
+        val savedUsername = preferences.getString("USERNAME", "")
+        username.setText(savedUsername)
+
         // Using a lambda to implement a View.OnClickListener interface. We can do this because
         // an OnClickListener is an interface that only requires *one* function.
         login.setOnClickListener {
+            // Save the username to SharedPreferences
+            val inputtedUsername = username.text.toString()
+            val editor = preferences.edit()
+            editor.putString("USERNAME", inputtedUsername)
+            editor.apply()
+
             progressBar.visibility = View.VISIBLE
 
             // An Intent is used to start a new Activity.
