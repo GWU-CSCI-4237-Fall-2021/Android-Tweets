@@ -84,3 +84,6 @@ lint/generated/
 lint/outputs/
 lint/tmp/
 lint/reports/
+
+# Normally you could uncomment this to avoid checking your API Key in
+# google_maps_api.xml

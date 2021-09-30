@@ -70,10 +70,10 @@ class MainActivity : AppCompatActivity() {
             // An Intent is used to start a new Activity.
             // 1st param == a "Context" which is a reference point into the Android system. All Activities are Contexts by inheritance.
             // 2nd param == the Class-type of the Activity you want to navigate to.
-            val intent: Intent = Intent(this, TweetsActivity::class.java)
+            val intent: Intent = Intent(this, MapsActivity::class.java)
 
             // An Intent can also be used like a Map (key-value pairs) to pass data between Activities.
-            intent.putExtra("LOCATION", "Washington")
+            // intent.putExtra("LOCATION", "Washington")
 
             // "Executes" our Intent to start a new Activity
             startActivity(intent)
