@@ -2,9 +2,12 @@ package edu.gwu.androidtweetsfall2021
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import org.jetbrains.anko.doAsync
 
 class TweetsActivity : AppCompatActivity() {
 
@@ -23,14 +26,36 @@ class TweetsActivity : AppCompatActivity() {
         val title = getString(R.string.tweets_title, location)
         setTitle(title)
 
-        val tweets: List<Tweet> = getFakeTweets()
+        // val tweets: List<Tweet> = getFakeTweets()
         recyclerView = findViewById(R.id.recyclerView)
 
         // Sets scrolling direction to vertical
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        val adapter: TweetsAdapter = TweetsAdapter(tweets)
-        recyclerView.adapter = adapter
+        val twitterManager: TwitterManager = TwitterManager()
+        val twitterApiKey = getString(R.string.twitter_api_key)
+
+        doAsync {
+            val tweets: List<Tweet> = try {
+                twitterManager.retrieveTweets(twitterApiKey, 37.781157, -122.398720)
+            } catch(exception: Exception) {
+                Log.e("TweetsActivity", "Retrieving Tweets failed!", exception)
+                listOf<Tweet>()
+            }
+
+            runOnUiThread {
+                if (tweets.isNotEmpty()) {
+                    val adapter: TweetsAdapter = TweetsAdapter(tweets)
+                    recyclerView.adapter = adapter
+                } else {
+                    Toast.makeText(
+                        this@TweetsActivity,
+                        "Failed to retrieve Tweets!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     fun getFakeTweets(): List<Tweet> {
