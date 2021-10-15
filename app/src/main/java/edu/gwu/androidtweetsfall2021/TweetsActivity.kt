@@ -1,6 +1,7 @@
 package edu.gwu.androidtweetsfall2021
 
 import android.content.Intent
+import android.location.Address
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -19,11 +20,11 @@ class TweetsActivity : AppCompatActivity() {
 
         // Retrieve data from the Intent that launched this screen
         val intent: Intent = getIntent()
-        val location: String = intent.getStringExtra("LOCATION")!!
+        val address: Address = intent.getParcelableExtra("address")!!
 
         // Kotlin-shorthand for setTitle(...)
         // getString(...) reads from strings.xml and allows you to substitute in any formatting arguments
-        val title = getString(R.string.tweets_title, location)
+        val title = getString(R.string.tweets_title, address.getAddressLine(0))
         setTitle(title)
 
         // val tweets: List<Tweet> = getFakeTweets()
@@ -34,10 +35,12 @@ class TweetsActivity : AppCompatActivity() {
 
         val twitterManager: TwitterManager = TwitterManager()
         val twitterApiKey = getString(R.string.twitter_api_key)
+        val twitterApiSecret = getString(R.string.twitter_api_secret)
 
         doAsync {
             val tweets: List<Tweet> = try {
-                twitterManager.retrieveTweets(twitterApiKey, 37.781157, -122.398720)
+                val oAuthToken = twitterManager.retrieveOAuthToken(twitterApiKey, twitterApiSecret)
+                twitterManager.retrieveTweets(oAuthToken, address.latitude, address.longitude)
             } catch(exception: Exception) {
                 Log.e("TweetsActivity", "Retrieving Tweets failed!", exception)
                 listOf<Tweet>()

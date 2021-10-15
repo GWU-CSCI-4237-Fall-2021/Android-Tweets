@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.squareup.picasso.Picasso
 
 class TweetsAdapter(val tweets: List<Tweet>) : RecyclerView.Adapter<TweetsAdapter.ViewHolder>() {
 
@@ -37,7 +38,14 @@ class TweetsAdapter(val tweets: List<Tweet>) : RecyclerView.Adapter<TweetsAdapte
         viewHolder.handle.text = currTweet.handle
         viewHolder.content.text = currTweet.content
 
-        // iconUrl will come later (once we learn how to do image downloads)
+        if (currTweet.iconUrl.isNotBlank()) {
+            Picasso.get().setIndicatorsEnabled(true)
+
+            Picasso
+                .get()
+                .load(currTweet.iconUrl)
+                .into(viewHolder.icon)
+        }
     }
 
     // A ViewHolder represents the Views that comprise a single row in our list (e.g.

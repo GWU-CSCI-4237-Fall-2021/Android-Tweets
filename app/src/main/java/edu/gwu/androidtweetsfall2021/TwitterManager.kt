@@ -1,11 +1,15 @@
 package edu.gwu.androidtweetsfall2021
 
+import android.util.Base64
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
 
 class TwitterManager {
     val okHttpClient: OkHttpClient
@@ -20,7 +24,39 @@ class TwitterManager {
         okHttpClient = okHttpClientBuilder.build()
     }
 
-    fun retrieveTweets(apiKey: String, lat: Double, lon: Double): List<Tweet> {
+    fun retrieveOAuthToken(apiKey: String, apiSecret: String): String {
+        // URL encoding converts any special characters into the ASCII representations
+        // i.e. ' ' --> '%20'
+        val encodedKey: String = URLEncoder.encode(apiKey, "UTF-8")
+        val encodedSecret: String = URLEncoder.encode(apiSecret, "UTF-8")
+
+        val concatenatedCredentials: String = "$encodedKey:$encodedSecret"
+
+        val base64Encoding: String = Base64.encodeToString(
+            concatenatedCredentials.toByteArray(), Base64.NO_WRAP)
+
+        val bodyString = "grant_type=client_credentials"
+        val contentType = "application/x-www-form-urlencoded".toMediaType()
+        val postBody = bodyString.toRequestBody(contentType)
+
+        val request: Request = Request.Builder()
+            .url("https://api.twitter.com/oauth2/token")
+            .header("Authorization", "Basic $base64Encoding")
+            .post(postBody)
+            .build()
+
+        val response: Response = okHttpClient.newCall(request).execute()
+        val responseBody: String? = response.body?.string()
+
+        return if (response.isSuccessful && !responseBody.isNullOrBlank()) {
+            val json: JSONObject = JSONObject(responseBody)
+            json.getString("access_token")
+        } else {
+            ""
+        }
+    }
+
+    fun retrieveTweets(oAuthToken: String, lat: Double, lon: Double): List<Tweet> {
         val tweets: MutableList<Tweet> = mutableListOf()
         val searchTerm: String = "Android"
         val searchRadius: String = "30mi"
@@ -30,7 +66,7 @@ class TwitterManager {
         val request: Request = Request.Builder()
             .url("https://api.twitter.com/1.1/search/tweets.json?q=$searchTerm&geocode=$lat,$lon,$searchRadius")
             .get()
-            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Authorization", "Bearer $oAuthToken")
             .build()
 
         val response: Response = okHttpClient.newCall(request).execute()

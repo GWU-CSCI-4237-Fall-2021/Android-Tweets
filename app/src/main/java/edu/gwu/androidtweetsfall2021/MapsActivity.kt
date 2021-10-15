@@ -1,5 +1,6 @@
 package edu.gwu.androidtweetsfall2021
 
+import android.content.Intent
 import android.location.Address
 import android.location.Geocoder
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +14,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.button.MaterialButton
 import edu.gwu.androidtweetsfall2021.databinding.ActivityMapsBinding
 import org.jetbrains.anko.doAsync
 
@@ -20,6 +22,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
+    private lateinit var confirm: MaterialButton
+    private var currentAddress: Address? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,12 +33,30 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        confirm = findViewById(R.id.confirm)
+        confirm.setOnClickListener {
+            val address = currentAddress
+            if (address != null) {
+                val intent = Intent(this, TweetsActivity::class.java)
+                intent.putExtra("address", address)
+                startActivity(intent)
+            }
+        }
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
 
         // Trigger the map to start loading
         mapFragment.getMapAsync(this)
+    }
+
+    fun updateCurrentAddress(address: Address) {
+        currentAddress = address
+        confirm.text = address.getAddressLine(0)
+
+        confirm.icon = getDrawable(R.drawable.ic_check)
+        confirm.setBackgroundColor(getColor(R.color.buttonGreen))
     }
 
     /**
@@ -86,6 +108,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
                         // Add a map marker where the user tapped and pan the camera over
                         googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(coords, 10.0f))
+
+                        updateCurrentAddress(firstResult)
                     } else {
                         Log.d("MapsActivity", "No results from geocoder!")
 
