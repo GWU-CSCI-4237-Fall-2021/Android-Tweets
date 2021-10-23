@@ -15,6 +15,8 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.button.MaterialButton
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import edu.gwu.androidtweetsfall2021.databinding.ActivityMapsBinding
 import org.jetbrains.anko.doAsync
 
@@ -23,6 +25,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
     private lateinit var confirm: MaterialButton
+    private lateinit var firebaseAuth: FirebaseAuth
     private var currentAddress: Address? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +35,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         // https://developer.android.com/topic/libraries/view-binding
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        firebaseAuth = FirebaseAuth.getInstance()
+        val currentUser: FirebaseUser = firebaseAuth.currentUser!!
+        title = getString(R.string.maps_title, currentUser.email)
+
 
         confirm = findViewById(R.id.confirm)
         confirm.setOnClickListener {

@@ -1,9 +1,21 @@
 <resources>
     <string name="app_name">AndroidTweetsFall2021</string>
     <string name="login">Login</string>
+    <string name="signup">Sign Up</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
     <string name="tweets_title">Android Tweets near %1$s</string>
+    <string name="maps_title">Welcome, %1$s</string>
     <string name="title_activity_maps">MapsActivity</string>
     <string name="geocoder_no_results">No results for location!</string>
+
+    <string name="login_success">Logged in as %1$s</string>
+    <string name="login_failure_generic">Failed to login: %1$s</string>
+    <string name="login_failure_wrong_credentials">Please check your username &amp; password and try again!</string>
+    <string name="login_failure_doesnt_exist">We can\'t find an account with this email. Try signing up for an account!</string>
+    <string name="signup_success">Registered successfully as %1$s</string>
+    <string name="signup_failure_generic">Failed to register: %1$s</string>
+    <string name="signup_failure_weak_password">Your password does not meet minimum requirements! Must be at least 6 characters long.</string>
+    <string name="signup_failure_already_exists">An account already exists for this email!</string>
+    <string name="signup_failure_invalid_format">You must supply a valid formatted email!</string>
 </resources>

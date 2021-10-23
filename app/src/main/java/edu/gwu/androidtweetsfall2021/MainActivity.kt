@@ -12,6 +12,9 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
+import android.widget.Toast
+import com.google.android.gms.tasks.Task
+import com.google.firebase.auth.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,7 +23,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var username: EditText
     private lateinit var password: EditText
     private lateinit var login: Button
+    private lateinit var signUp: Button
     private lateinit var progressBar: ProgressBar
+    private lateinit var firebaseAuth: FirebaseAuth
 
     // onCreate is called the first time the Activity is to be shown to the user, so it a good spot
     // to put initialization logic.
@@ -30,6 +35,8 @@ class MainActivity : AppCompatActivity() {
 
         // Tells Android which layout file should be used for this screen.
         setContentView(R.layout.activity_main)
+
+        firebaseAuth = FirebaseAuth.getInstance()
 
         // Equivalent of a System.out.println (Android has different logging levels to organize logs -- .d is for DEBUG)
         // First parameter = the "tag" allows you to find related logging statements easier (e.g. all logs in the MainActivity)
@@ -45,11 +52,13 @@ class MainActivity : AppCompatActivity() {
         username = findViewById(R.id.username)
         password = findViewById(R.id.password)
         login = findViewById(R.id.login)
+        signUp = findViewById(R.id.signUp)
         progressBar = findViewById(R.id.progressBar)
 
         // Kotlin shorthand for login.setEnabled(false).
         // If the getter / setter is unambiguous, Kotlin lets you use the property-style syntax
         login.isEnabled = false
+        signUp.isEnabled = false
 
         // Restore the saved username from SharedPreferences and display it to the user when the screen loads.
         // Default to the empty string if there is no saved username.
@@ -61,28 +70,143 @@ class MainActivity : AppCompatActivity() {
         login.setOnClickListener {
             // Save the username to SharedPreferences
             val inputtedUsername = username.text.toString()
-            val editor = preferences.edit()
-            editor.putString("USERNAME", inputtedUsername)
-            editor.apply()
+            val inputtedPassword = password.text.toString()
+            showLoading()
 
-            progressBar.visibility = View.VISIBLE
+            firebaseAuth
+                .signInWithEmailAndPassword(inputtedUsername, inputtedPassword)
+                .addOnCompleteListener { task: Task<AuthResult> ->
+                    hideLoading()
 
-            // An Intent is used to start a new Activity.
-            // 1st param == a "Context" which is a reference point into the Android system. All Activities are Contexts by inheritance.
-            // 2nd param == the Class-type of the Activity you want to navigate to.
-            val intent: Intent = Intent(this, MapsActivity::class.java)
+                    if (task.isSuccessful) {
+                        val currentUser: FirebaseUser = firebaseAuth.currentUser!!
+                        Toast.makeText(
+                            this,
+                            "Logged in as: ${currentUser.email}",
+                            Toast.LENGTH_LONG
+                        ).show()
 
-            // An Intent can also be used like a Map (key-value pairs) to pass data between Activities.
-            // intent.putExtra("LOCATION", "Washington")
+                        val editor = preferences.edit()
+                        editor.putString("USERNAME", inputtedUsername)
+                        editor.apply()
 
-            // "Executes" our Intent to start a new Activity
-            startActivity(intent)
+
+                        // An Intent is used to start a new Activity.
+                        // 1st param == a "Context" which is a reference point into the Android system. All Activities are Contexts by inheritance.
+                        // 2nd param == the Class-type of the Activity you want to navigate to.
+                        val intent: Intent = Intent(this, MapsActivity::class.java)
+
+                        // An Intent can also be used like a Map (key-value pairs) to pass data between Activities.
+                        // intent.putExtra("LOCATION", "Washington")
+
+                        // "Executes" our Intent to start a new Activity
+                        startActivity(intent)
+                    } else {
+                        val exception: Exception? = task.exception
+                        when (exception) {
+                            is FirebaseAuthInvalidUserException -> {
+                                Toast.makeText(
+                                    this,
+                                    R.string.login_failure_doesnt_exist,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            is FirebaseAuthInvalidCredentialsException -> {
+                                Toast.makeText(
+                                    this,
+                                    R.string.login_failure_wrong_credentials,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            else -> {
+                                Toast.makeText(
+                                    this,
+                                    getString(R.string.login_failure_generic, exception),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                }
+        }
+
+        signUp.setOnClickListener {
+            val inputtedUsername: String = username.text.toString()
+            val inputtedPassword: String = password.text.toString()
+            showLoading()
+
+            firebaseAuth
+                .createUserWithEmailAndPassword(inputtedUsername, inputtedPassword)
+                .addOnCompleteListener { task: Task<AuthResult> ->
+                    hideLoading()
+
+                    if (task.isSuccessful) {
+                        val currentUser: FirebaseUser = firebaseAuth.currentUser!!
+
+                        Toast.makeText(
+                            this,
+                            "Registered successfully as: ${currentUser.email}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        val exception: Exception? = task.exception
+                        when (exception) {
+                            is FirebaseAuthWeakPasswordException -> {
+                                Toast.makeText(
+                                    this,
+                                    R.string.signup_failure_weak_password,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            is FirebaseAuthUserCollisionException -> {
+                                Toast.makeText(
+                                    this,
+                                    R.string.signup_failure_already_exists,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            is FirebaseAuthInvalidCredentialsException -> {
+                                Toast.makeText(
+                                    this,
+                                    R.string.signup_failure_invalid_format,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            else -> {
+                                Toast.makeText(
+                                    this,
+                                    getString(R.string.signup_failure_generic, exception),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                }
         }
 
         // Using the same TextWatcher instance for both EditTexts so the same block of code runs on each character.
         username.addTextChangedListener(textWatcher)
         password.addTextChangedListener(textWatcher)
     }
+
+    // Displays the loading indicator and disables user input
+    private fun showLoading() {
+        progressBar.visibility = View.VISIBLE
+        login.isEnabled = false
+        signUp.isEnabled = false
+        username.isEnabled = false
+        password.isEnabled = false
+    }
+
+    // Hides the loading indicator and enables user input
+    private fun hideLoading() {
+        progressBar.visibility = View.INVISIBLE
+        login.isEnabled = true
+        signUp.isEnabled = true
+        username.isEnabled = true
+        password.isEnabled = true
+    }
+
 
     // Another example of explicitly implementing an interface (TextWatcher). We cannot use
     // a lambda in this case since there are multiple functions we need to implement.
@@ -101,6 +225,7 @@ class MainActivity : AppCompatActivity() {
 
             // Kotlin shorthand for login.setEnabled(enableButton)
             login.isEnabled = enableButton
+            signUp.isEnabled = enableButton
         }
 
         override fun afterTextChanged(p0: Editable?) {}
