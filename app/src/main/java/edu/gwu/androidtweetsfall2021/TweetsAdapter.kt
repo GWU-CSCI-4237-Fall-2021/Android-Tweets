@@ -1,10 +1,13 @@
 package edu.gwu.androidtweetsfall2021
 
+import android.content.Context
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.squareup.picasso.Picasso
 
@@ -37,6 +40,14 @@ class TweetsAdapter(val tweets: List<Tweet>) : RecyclerView.Adapter<TweetsAdapte
         viewHolder.username.text = currTweet.username
         viewHolder.handle.text = currTweet.handle
         viewHolder.content.text = currTweet.content
+
+        viewHolder.content.setOnClickListener {
+            Log.d("TweetsAdapter", "This line will print if the user clicks on the content in this row!")
+            Log.d("TweetsAdapter", "The user clicked a Tweet from: ${currTweet.username}")
+            val context: Context = viewHolder.content.context
+
+            Toast.makeText(context, "You clicked a Tweet from: ${currTweet.username}", Toast.LENGTH_LONG).show()
+        }
 
         if (currTweet.iconUrl.isNotBlank()) {
             Picasso.get().setIndicatorsEnabled(true)

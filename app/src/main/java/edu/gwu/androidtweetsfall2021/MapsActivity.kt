@@ -15,8 +15,11 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.button.MaterialButton
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import edu.gwu.androidtweetsfall2021.databinding.ActivityMapsBinding
 import org.jetbrains.anko.doAsync
 
@@ -26,6 +29,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityMapsBinding
     private lateinit var confirm: MaterialButton
     private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
     private var currentAddress: Address? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,12 +41,15 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         setContentView(binding.root)
 
         firebaseAuth = FirebaseAuth.getInstance()
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+
         val currentUser: FirebaseUser = firebaseAuth.currentUser!!
         title = getString(R.string.maps_title, currentUser.email)
 
 
         confirm = findViewById(R.id.confirm)
         confirm.setOnClickListener {
+            firebaseAnalytics.logEvent("confirm_clicked", null)
             val address = currentAddress
             if (address != null) {
                 val intent = Intent(this, TweetsActivity::class.java)
@@ -77,6 +84,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
         googleMap.setOnMapLongClickListener { coords: LatLng ->
             googleMap.clear()
+            firebaseAnalytics.logEvent("map_long_press", null)
 
             // Geocoding should be done on a background thread - it involves networking
             // and has the potential to cause the app to freeze (Application Not Responding error)
@@ -87,7 +95,11 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                 // In Kotlin, you can assign the result of a try-catch block. Both the "try" and
                 // "catch" clauses need to yield a valid value to assign.
                 val results: List<Address> = try {
-                    geocoder.getFromLocation(coords.latitude, coords.longitude, 10)
+                    geocoder.getFromLocation(coords.latitude, coords.longitude, 10).also { results ->
+                        firebaseAnalytics.logEvent("geocoding_success", Bundle().apply {
+                            putString("count", "" + results.size)
+                        })
+                    }
                 } catch (exception: Exception) {
                     // Uses the error logger to print the error
                     Log.e("MapsActivity", "Geocoding failed", exception)
@@ -95,6 +107,8 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
                     // Uses System.out.println to print the error
                     exception.printStackTrace()
 
+                    firebaseAnalytics.logEvent("geocoding_failed", null)
+                    Firebase.crashlytics.recordException(exception)
                     listOf()
                 }
 
