@@ -14,7 +14,10 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
 import com.google.android.gms.tasks.Task
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.*
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var signUp: Button
     private lateinit var progressBar: ProgressBar
     private lateinit var firebaseAuth: FirebaseAuth
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     // onCreate is called the first time the Activity is to be shown to the user, so it a good spot
     // to put initialization logic.
@@ -37,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         firebaseAuth = FirebaseAuth.getInstance()
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
         // Equivalent of a System.out.println (Android has different logging levels to organize logs -- .d is for DEBUG)
         // First parameter = the "tag" allows you to find related logging statements easier (e.g. all logs in the MainActivity)
@@ -68,6 +73,8 @@ class MainActivity : AppCompatActivity() {
         // Using a lambda to implement a View.OnClickListener interface. We can do this because
         // an OnClickListener is an interface that only requires *one* function.
         login.setOnClickListener {
+            firebaseAnalytics.logEvent("login_clicked", null)
+
             // Save the username to SharedPreferences
             val inputtedUsername = username.text.toString()
             val inputtedPassword = password.text.toString()
@@ -79,6 +86,8 @@ class MainActivity : AppCompatActivity() {
                     hideLoading()
 
                     if (task.isSuccessful) {
+                        firebaseAnalytics.logEvent("login_success", null)
+
                         val currentUser: FirebaseUser = firebaseAuth.currentUser!!
                         Toast.makeText(
                             this,
@@ -102,9 +111,17 @@ class MainActivity : AppCompatActivity() {
                         // "Executes" our Intent to start a new Activity
                         startActivity(intent)
                     } else {
+                        val bundle = Bundle()
                         val exception: Exception? = task.exception
+
+                        if (exception != null) {
+                            Firebase.crashlytics.recordException(exception)
+                        }
+
                         when (exception) {
                             is FirebaseAuthInvalidUserException -> {
+                                bundle.putString("error_type", "invalid_user")
+                                firebaseAnalytics.logEvent("login_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     R.string.login_failure_doesnt_exist,
@@ -112,6 +129,8 @@ class MainActivity : AppCompatActivity() {
                                 ).show()
                             }
                             is FirebaseAuthInvalidCredentialsException -> {
+                                bundle.putString("error_type", "invalid_credentials")
+                                firebaseAnalytics.logEvent("login_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     R.string.login_failure_wrong_credentials,
@@ -119,6 +138,8 @@ class MainActivity : AppCompatActivity() {
                                 ).show()
                             }
                             else -> {
+                                bundle.putString("error_type", "generic")
+                                firebaseAnalytics.logEvent("login_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     getString(R.string.login_failure_generic, exception),
@@ -135,12 +156,15 @@ class MainActivity : AppCompatActivity() {
             val inputtedPassword: String = password.text.toString()
             showLoading()
 
+            firebaseAnalytics.logEvent("signup_clicked", null)
+
             firebaseAuth
                 .createUserWithEmailAndPassword(inputtedUsername, inputtedPassword)
                 .addOnCompleteListener { task: Task<AuthResult> ->
                     hideLoading()
 
                     if (task.isSuccessful) {
+                        firebaseAnalytics.logEvent("signup_success", null)
                         val currentUser: FirebaseUser = firebaseAuth.currentUser!!
 
                         Toast.makeText(
@@ -150,8 +174,16 @@ class MainActivity : AppCompatActivity() {
                         ).show()
                     } else {
                         val exception: Exception? = task.exception
+                        val bundle = Bundle()
+
+                        if (exception != null) {
+                            Firebase.crashlytics.recordException(exception)
+                        }
+
                         when (exception) {
                             is FirebaseAuthWeakPasswordException -> {
+                                bundle.putString("error_type", "weak_password")
+                                firebaseAnalytics.logEvent("signup_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     R.string.signup_failure_weak_password,
@@ -159,6 +191,8 @@ class MainActivity : AppCompatActivity() {
                                 ).show()
                             }
                             is FirebaseAuthUserCollisionException -> {
+                                bundle.putString("error_type", "user_collision")
+                                firebaseAnalytics.logEvent("signup_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     R.string.signup_failure_already_exists,
@@ -166,6 +200,8 @@ class MainActivity : AppCompatActivity() {
                                 ).show()
                             }
                             is FirebaseAuthInvalidCredentialsException -> {
+                                bundle.putString("error_type", "invalid_credentials")
+                                firebaseAnalytics.logEvent("signup_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     R.string.signup_failure_invalid_format,
@@ -173,6 +209,8 @@ class MainActivity : AppCompatActivity() {
                                 ).show()
                             }
                             else -> {
+                                bundle.putString("error_type", "generic")
+                                firebaseAnalytics.logEvent("signup_failed", bundle)
                                 Toast.makeText(
                                     this,
                                     getString(R.string.signup_failure_generic, exception),

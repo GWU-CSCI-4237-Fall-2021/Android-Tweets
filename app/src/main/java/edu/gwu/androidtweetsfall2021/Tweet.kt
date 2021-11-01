@@ -7,4 +7,6 @@ data class Tweet(
     val handle: String,
     val content: String,
     val iconUrl: String
-) : Serializable
+) : Serializable {
+    constructor() : this("","","","")
+}

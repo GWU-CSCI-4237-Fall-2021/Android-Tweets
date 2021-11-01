@@ -4,23 +4,108 @@ import android.content.Intent
 import android.location.Address
 import android.os.Bundle
 import android.util.Log
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import com.google.firebase.ktx.Firebase
 import org.jetbrains.anko.doAsync
 
 class TweetsActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
+    private lateinit var firebaseDatabase: FirebaseDatabase
+    private lateinit var addTweets: FloatingActionButton
+    private lateinit var tweetContent: EditText
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_tweets)
 
+        firebaseDatabase = FirebaseDatabase.getInstance()
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+
+        addTweets = findViewById(R.id.add_tweet)
+        tweetContent = findViewById(R.id.tweet_content)
+
         // Retrieve data from the Intent that launched this screen
         val intent: Intent = getIntent()
         val address: Address = intent.getParcelableExtra("address")!!
+
+        getTweetsFromFirebase(address)
+    }
+
+    private fun getTweetsFromFirebase(address: Address) {
+        // Kotlin-shorthand for setTitle(...)
+        // getString(...) reads from strings.xml and allows you to substitute in any formatting arguments
+        val state = address.adminArea ?: "Unknown"
+        val title = getString(R.string.tweets_title, state)
+        setTitle(title)
+
+        // val tweets: List<Tweet> = getFakeTweets()
+        recyclerView = findViewById(R.id.recyclerView)
+
+        // Sets scrolling direction to vertical
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        val reference = firebaseDatabase.getReference("tweets/$state")
+        addTweets.setOnClickListener {
+            firebaseAnalytics.logEvent("add_tweets_clicked", null)
+            val content = tweetContent.text.toString()
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (content.isNotEmpty()) {
+                val username = currentUser!!.email!!
+                val handle = username
+                val tweet = Tweet(username, handle, content, "https://i.imgur.com/DvpvklR.png") // Fake image URL for now
+
+                reference.push().setValue(tweet)
+            }
+
+        }
+
+        reference.addValueEventListener(object : ValueEventListener {
+            override fun onCancelled(databaseError: DatabaseError) {
+                firebaseAnalytics.logEvent("firebasedb_cancelled", null)
+                Toast.makeText(
+                    this@TweetsActivity,
+                    "Failed to retrieve Tweets! Error: ${databaseError.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                firebaseAnalytics.logEvent("firebasedb_data_change", null)
+                val tweets = mutableListOf<Tweet>()
+                dataSnapshot.children.forEach { data ->
+                    try {
+                        val tweet = data.getValue(Tweet::class.java)
+                        if (tweet != null) {
+                            tweets.add(tweet)
+                        }
+                    } catch (exception: Exception) {
+                        Log.e("TweetsActivity", "Failed to read Tweet", exception)
+                        Firebase.crashlytics.recordException(exception)
+                    }
+                }
+                recyclerView.adapter = TweetsAdapter(tweets)
+            }
+        })
+
+
+    }
+
+    private fun getTweetsFromTwitter(address: Address) {
 
         // Kotlin-shorthand for setTitle(...)
         // getString(...) reads from strings.xml and allows you to substitute in any formatting arguments
@@ -40,9 +125,13 @@ class TweetsActivity : AppCompatActivity() {
         doAsync {
             val tweets: List<Tweet> = try {
                 val oAuthToken = twitterManager.retrieveOAuthToken(twitterApiKey, twitterApiSecret)
-                twitterManager.retrieveTweets(oAuthToken, address.latitude, address.longitude)
+                twitterManager.retrieveTweets(oAuthToken, address.latitude, address.longitude).also {
+                    firebaseAnalytics.logEvent("twitter_success", null)
+                }
             } catch(exception: Exception) {
                 Log.e("TweetsActivity", "Retrieving Tweets failed!", exception)
+                Firebase.crashlytics.recordException(exception)
+                firebaseAnalytics.logEvent("twitter_failed", null)
                 listOf<Tweet>()
             }
 
@@ -59,70 +148,6 @@ class TweetsActivity : AppCompatActivity() {
                 }
             }
         }
-    }
 
-    fun getFakeTweets(): List<Tweet> {
-        return listOf(
-            Tweet(
-                handle = "@nickcapurso",
-                username = "Nick Capurso",
-                content = "We're learning lists!",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "Android Central",
-                handle = "@androidcentral",
-                content = "NVIDIA Shield TV vs. Shield TV Pro: Which should I buy?",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "DC Android",
-                handle = "@DCAndroid",
-                content = "FYI - another great integration for the @Firebase platform",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "KotlinConf",
-                handle = "@kotlinconf",
-                content = "Can't make it to KotlinConf this year? We have a surprise for you. We'll be live streaming the keynotes, closing panel and an entire track over the 2 main conference days. Sign-up to get notified once we go live!",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "Android Summit",
-                handle = "@androidsummit",
-                content = "What a #Keynote! @SlatteryClaire is the Director of Performance at Speechless, and that's exactly how she left us after her amazing (and interactive!) #keynote at #androidsummit. #DCTech #AndroidDev #Android",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "Fragmented Podcast",
-                handle = "@FragmentedCast",
-                content = ".... annnnnnnnnd we're back!\n\nThis week @donnfelker talks about how it's Ok to not know everything and how to set yourself up mentally for JIT (Just In Time [learning]). Listen in here: \nhttp://fragmentedpodcast.com/episodes/135/ ",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "Jake Wharton",
-                handle = "@JakeWharton",
-                content = "Free idea: location-aware physical password list inside a password manager. Mostly for garage door codes and the like. I want to open my password app, switch to the non-URL password section, and see a list of things sorted by physical distance to me.",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "Droidcon Boston",
-                handle = "@droidconbos",
-                content = "#DroidconBos will be back in Boston next year on April 8-9!",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = "AndroidWeekly",
-                handle = "@androidweekly",
-                content = "Latest Android Weekly Issue 327 is out!\nhttp://androidweekly.net/ #latest-issue  #AndroidDev",
-                iconUrl = "https://...."
-            ),
-            Tweet(
-                username = ".droidconSF",
-                handle = "@droidconSF",
-                content = "Drum roll please.. Announcing droidcon SF 2018! November 19-20 @ Mission Bay Conference Center. Content and programming by @tsmith & @joenrv.",
-                iconUrl = "https://...."
-            )
-        )
     }
 }
