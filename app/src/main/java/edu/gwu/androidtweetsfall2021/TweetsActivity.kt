@@ -4,6 +4,7 @@ import android.content.Intent
 import android.location.Address
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -29,6 +30,8 @@ class TweetsActivity : AppCompatActivity() {
     private lateinit var tweetContent: EditText
     private lateinit var firebaseAnalytics: FirebaseAnalytics
 
+    private val currentTweets: MutableList<Tweet> = mutableListOf()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_tweets)
@@ -38,12 +41,34 @@ class TweetsActivity : AppCompatActivity() {
 
         addTweets = findViewById(R.id.add_tweet)
         tweetContent = findViewById(R.id.tweet_content)
+        recyclerView = findViewById(R.id.recyclerView)
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
         // Retrieve data from the Intent that launched this screen
         val intent: Intent = getIntent()
         val address: Address = intent.getParcelableExtra("address")!!
 
-        getTweetsFromFirebase(address)
+        if (savedInstanceState != null) {
+            // Activity has just been rotated and our state has been saved in the bundle
+            currentTweets.addAll(savedInstanceState.getSerializable("tweets") as List<Tweet>)
+            val adapter = TweetsAdapter(currentTweets)
+
+            addTweets.hide()
+            tweetContent.visibility = View.GONE
+
+            recyclerView.adapter = adapter
+        } else {
+            // First time Activity launch, retrieve data from Twitter / Firebase
+            getTweetsFromTwitter(address)
+            //getTweetsFromFirebase(address)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+
+        val serializableList = ArrayList(currentTweets)
+        outState.putSerializable("tweets", serializableList)
     }
 
     private fun getTweetsFromFirebase(address: Address) {
@@ -52,12 +77,6 @@ class TweetsActivity : AppCompatActivity() {
         val state = address.adminArea ?: "Unknown"
         val title = getString(R.string.tweets_title, state)
         setTitle(title)
-
-        // val tweets: List<Tweet> = getFakeTweets()
-        recyclerView = findViewById(R.id.recyclerView)
-
-        // Sets scrolling direction to vertical
-        recyclerView.layoutManager = LinearLayoutManager(this)
 
         val reference = firebaseDatabase.getReference("tweets/$state")
         addTweets.setOnClickListener {
@@ -106,17 +125,13 @@ class TweetsActivity : AppCompatActivity() {
     }
 
     private fun getTweetsFromTwitter(address: Address) {
+        addTweets.hide()
+        tweetContent.visibility = View.GONE
 
         // Kotlin-shorthand for setTitle(...)
         // getString(...) reads from strings.xml and allows you to substitute in any formatting arguments
         val title = getString(R.string.tweets_title, address.getAddressLine(0))
         setTitle(title)
-
-        // val tweets: List<Tweet> = getFakeTweets()
-        recyclerView = findViewById(R.id.recyclerView)
-
-        // Sets scrolling direction to vertical
-        recyclerView.layoutManager = LinearLayoutManager(this)
 
         val twitterManager: TwitterManager = TwitterManager()
         val twitterApiKey = getString(R.string.twitter_api_key)
@@ -134,6 +149,9 @@ class TweetsActivity : AppCompatActivity() {
                 firebaseAnalytics.logEvent("twitter_failed", null)
                 listOf<Tweet>()
             }
+
+            currentTweets.clear()
+            currentTweets.addAll(tweets)
 
             runOnUiThread {
                 if (tweets.isNotEmpty()) {
