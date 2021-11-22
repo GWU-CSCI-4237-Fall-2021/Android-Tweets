@@ -101,53 +101,5 @@ class TweetsActivity : AppCompatActivity() {
                 recyclerView.adapter = TweetsAdapter(tweets)
             }
         })
-
-
-    }
-
-    private fun getTweetsFromTwitter(address: Address) {
-
-        // Kotlin-shorthand for setTitle(...)
-        // getString(...) reads from strings.xml and allows you to substitute in any formatting arguments
-        val title = getString(R.string.tweets_title, address.getAddressLine(0))
-        setTitle(title)
-
-        // val tweets: List<Tweet> = getFakeTweets()
-        recyclerView = findViewById(R.id.recyclerView)
-
-        // Sets scrolling direction to vertical
-        recyclerView.layoutManager = LinearLayoutManager(this)
-
-        val twitterManager: TwitterManager = TwitterManager()
-        val twitterApiKey = getString(R.string.twitter_api_key)
-        val twitterApiSecret = getString(R.string.twitter_api_secret)
-
-        doAsync {
-            val tweets: List<Tweet> = try {
-                val oAuthToken = twitterManager.retrieveOAuthToken(twitterApiKey, twitterApiSecret)
-                twitterManager.retrieveTweets(oAuthToken, address.latitude, address.longitude).also {
-                    firebaseAnalytics.logEvent("twitter_success", null)
-                }
-            } catch(exception: Exception) {
-                Log.e("TweetsActivity", "Retrieving Tweets failed!", exception)
-                Firebase.crashlytics.recordException(exception)
-                firebaseAnalytics.logEvent("twitter_failed", null)
-                listOf<Tweet>()
-            }
-
-            runOnUiThread {
-                if (tweets.isNotEmpty()) {
-                    val adapter: TweetsAdapter = TweetsAdapter(tweets)
-                    recyclerView.adapter = adapter
-                } else {
-                    Toast.makeText(
-                        this@TweetsActivity,
-                        "Failed to retrieve Tweets!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-
     }
 }

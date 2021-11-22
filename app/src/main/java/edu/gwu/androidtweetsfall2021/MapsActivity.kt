@@ -128,7 +128,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             override fun onLocationResult(result: LocationResult) {
                 super.onLocationResult(result)
 
-                //locationProvider.removeLocationUpdates(this)
+                locationProvider.removeLocationUpdates(this)
 
                 val location = result.lastLocation
                 if (location != null) {
@@ -144,14 +144,6 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             locationCallback,
             null
         )
-
-//        locationProvider.lastLocation.addOnSuccessListener { location: Location? ->
-//            if (location != null) {
-//                Log.d("MapsActivity", "Location: ${location.latitude}, ${location.longitude}")
-//                val latLng = LatLng(location.latitude, location.longitude)
-//                doGeocoding(latLng)
-//            }
-//        }
     }
 
     private fun doGeocoding(coords: LatLng) {
