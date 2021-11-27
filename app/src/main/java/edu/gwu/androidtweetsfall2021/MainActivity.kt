@@ -30,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var firebaseAnalytics: FirebaseAnalytics
+    private lateinit var shakeManager: ShakeManager
 
     // onCreate is called the first time the Activity is to be shown to the user, so it a good spot
     // to put initialization logic.
@@ -39,6 +40,8 @@ class MainActivity : AppCompatActivity() {
 
         // Tells Android which layout file should be used for this screen.
         setContentView(R.layout.activity_main)
+
+        shakeManager = ShakeManager(this)
 
         firebaseAuth = FirebaseAuth.getInstance()
         firebaseAnalytics = FirebaseAnalytics.getInstance(this)
@@ -225,6 +228,19 @@ class MainActivity : AppCompatActivity() {
         // Using the same TextWatcher instance for both EditTexts so the same block of code runs on each character.
         username.addTextChangedListener(textWatcher)
         password.addTextChangedListener(textWatcher)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        shakeManager.startDetectingShakes {
+            // ...
+            Log.d("MainActivity", "Shake occurred!")
+        }
+    }
+
+    override fun onPause() {
+        shakeManager.stopDetectingShakes()
+        super.onPause()
     }
 
     // Displays the loading indicator and disables user input
